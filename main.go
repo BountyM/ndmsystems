@@ -84,20 +84,15 @@ func (b *broker) consume(ctx context.Context, topicName string, timeout time.Dur
 		return record, true
 	}
 
+	if timeout == 0 {
+		b.mu.Unlock()
+		return "", false
+	}
+
 	ch := make(chan string, 1)
 	sub := &subscriber{ch: ch, pending: true}
 	topic.subscribers = append(topic.subscribers, sub)
 	b.mu.Unlock()
-
-	if timeout == 0 {
-		select {
-		case record := <-ch:
-			return record, true
-		case <-ctx.Done():
-			b.cancelSubscriber(topicName, sub)
-			return "", false
-		}
-	}
 
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
